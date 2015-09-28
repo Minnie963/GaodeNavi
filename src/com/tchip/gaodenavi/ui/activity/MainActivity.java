@@ -494,10 +494,10 @@ public class MainActivity extends Activity implements LocationSource,
 	 * 开始进行poi搜索
 	 */
 	protected void doSearchQuery() {
-		showProgressDialog();// 显示进度框
-		currentPage = 0;
+		showProgressDialog(); // 显示进度框
+		currentPage = 0; // 重置页码
 		query = new PoiSearch.Query(keyWord, "", editCity.getText().toString());// 第一个参数表示搜索字符串，第二个参数表示poi搜索类型，第三个参数表示poi搜索区域（空字符串代表全国）
-		query.setPageSize(10);// 设置每页最多返回多少条poiitem
+		query.setPageSize(10); // 设置每页最多返回多少条poiitem
 		query.setPageNum(currentPage);// 设置查第一页
 
 		poiSearch = new PoiSearch(this, query);

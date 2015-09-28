@@ -28,6 +28,6 @@
         android:layout_alignParentBottom="true"
         android:layout_alignParentRight="true"
         android:layout_toRightOf="@id/snippet"
-        android:background="@drawable/ic_launcher" />
+        android:background="@drawable/ui_icon_infowindow_navi" />
 
 </RelativeLayout>
