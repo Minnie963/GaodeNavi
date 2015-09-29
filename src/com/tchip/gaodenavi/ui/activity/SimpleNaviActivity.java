@@ -20,7 +20,7 @@ public class SimpleNaviActivity extends Activity implements
 	// 导航View
 	private AMapNaviView mAmapAMapNaviView;
 	// 是否为模拟导航
-	private boolean mIsEmulatorNavi = true;
+	private boolean mIsEmulatorNavi = false;
 	// 记录有哪个页面跳转而来，处理返回键
 	private int mCode = -1;
 
@@ -35,7 +35,7 @@ public class SimpleNaviActivity extends Activity implements
 
 	private void processBundle(Bundle bundle) {
 		if (bundle != null) {
-			mIsEmulatorNavi = bundle.getBoolean(AMapUtil.ISEMULATOR, true);
+			mIsEmulatorNavi = bundle.getBoolean(AMapUtil.ISEMULATOR, false);
 			mCode = bundle.getInt(AMapUtil.ACTIVITYINDEX);
 		}
 	}

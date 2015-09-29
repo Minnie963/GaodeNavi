@@ -99,6 +99,8 @@ public class MainActivity extends Activity implements LocationSource,
 	private LatLng nowLatLng;
 	private boolean isLocated = false;
 
+	private boolean isSimulate = false;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -154,8 +156,8 @@ public class MainActivity extends Activity implements LocationSource,
 		/**
 		 * 设置页面监听
 		 */
-		Button searButton = (Button) findViewById(R.id.searchButton);
-		searButton.setOnClickListener(new MyOnClickListener());
+		ImageButton btnSearch = (ImageButton) findViewById(R.id.btnSearch);
+		btnSearch.setOnClickListener(new MyOnClickListener());
 		Button nextButton = (Button) findViewById(R.id.nextButton);
 		nextButton.setOnClickListener(new MyOnClickListener());
 		searchText = (AutoCompleteTextView) findViewById(R.id.keyWord);
@@ -248,17 +250,17 @@ public class MainActivity extends Activity implements LocationSource,
 	 * 定位成功后回调函数
 	 */
 	@Override
-	public void onLocationChanged(AMapLocation aLocation) {
-		if (mListener != null && aLocation != null) {
-			double locateLat = aLocation.getLatitude();
-			double locateLng = aLocation.getLongitude();
+	public void onLocationChanged(AMapLocation location) {
+		if (mListener != null && location != null) {
+			double locateLat = location.getLatitude();
+			double locateLng = location.getLongitude();
 
 			if (0.0 == locateLat || 0.0 == locateLng) {
 				MyLog.e("[Location]Error Location, not update map");
 			} else {
 				isLocated = true;
 				nowLatLng = new LatLng(locateLat, locateLng);
-				mListener.onLocationChanged(aLocation); // 显示系统小蓝点
+				mListener.onLocationChanged(location); // 显示系统小蓝点
 			}
 			MyLog.v("[Location]Lat:" + locateLat + ",Lng:" + locateLng);
 		}
@@ -305,15 +307,14 @@ public class MainActivity extends Activity implements LocationSource,
 	public View getInfoWindow(final Marker marker) {
 		View view = getLayoutInflater().inflate(R.layout.poikeywordsearch_uri,
 				null);
-		TextView title = (TextView) view.findViewById(R.id.title);
-		title.setText(marker.getTitle());
+		TextView textTitle = (TextView) view.findViewById(R.id.textTitle);
+		textTitle.setText(marker.getTitle());
 
-		TextView snippet = (TextView) view.findViewById(R.id.snippet);
-		snippet.setText(marker.getSnippet());
-		ImageButton button = (ImageButton) view
-				.findViewById(R.id.start_amap_app);
+		TextView textAddress = (TextView) view.findViewById(R.id.textAddress);
+		textAddress.setText(marker.getSnippet());
+		ImageButton btnNavi = (ImageButton) view.findViewById(R.id.btnNavi);
 
-		button.setOnClickListener(new View.OnClickListener() {
+		btnNavi.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				// 导航
@@ -336,6 +337,7 @@ public class MainActivity extends Activity implements LocationSource,
 					// DrivingNoExpressways--不走高速
 					// DrivingFastestTime--最短时间
 					// DrivingAvoidCongestion--避免拥堵
+					isSimulate = false;
 					AMapNavi.getInstance(MainActivity.this)
 							.calculateDriveRoute(startPoints, endPoints, null,
 									AMapNavi.DrivingDefault);
@@ -346,6 +348,44 @@ public class MainActivity extends Activity implements LocationSource,
 				}
 			}
 		});
+
+		ImageButton btnSimulate = (ImageButton) view
+				.findViewById(R.id.btnSimulate);
+		btnSimulate.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				// 导航
+				// 起点终点列表
+				ArrayList<NaviLatLng> startPoints = new ArrayList<NaviLatLng>();
+				ArrayList<NaviLatLng> endPoints = new ArrayList<NaviLatLng>();
+
+				LatLng endLatLng = marker.getPosition();
+				NaviLatLng endNaviLatLng = new NaviLatLng(endLatLng.latitude,
+						endLatLng.longitude);
+				endPoints.add(endNaviLatLng);
+
+				NaviLatLng startNaviLatLng = new NaviLatLng(nowLatLng.latitude,
+						nowLatLng.longitude);
+				startPoints.add(startNaviLatLng);
+
+				if (isLocated) {
+					// DrivingSaveMoney--省钱
+					// DrivingShortDistance--最短距离
+					// DrivingNoExpressways--不走高速
+					// DrivingFastestTime--最短时间
+					// DrivingAvoidCongestion--避免拥堵
+					isSimulate = true;
+					AMapNavi.getInstance(MainActivity.this)
+							.calculateDriveRoute(startPoints, endPoints, null,
+									AMapNavi.DrivingDefault);
+					mRouteCalculatorProgressDialog.show();
+				} else {
+					Toast.makeText(getApplicationContext(), "未定位",
+							Toast.LENGTH_SHORT).show();
+				}
+			}
+		});
+
 		return view;
 	}
 
@@ -533,7 +573,7 @@ public class MainActivity extends Activity implements LocationSource,
 		public void onClick(View v) {
 
 			switch (v.getId()) {
-			case R.id.searchButton:
+			case R.id.btnSearch:
 				keyWord = AMapUtil.checkEditText(searchText);
 				if ("".equals(keyWord)) {
 					// 请输入搜索关键字
@@ -594,7 +634,7 @@ public class MainActivity extends Activity implements LocationSource,
 		intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
 		Bundle bundle = new Bundle();
 		bundle.putInt(AMapUtil.ACTIVITYINDEX, AMapUtil.SIMPLEGPSNAVI);
-		bundle.putBoolean(AMapUtil.ISEMULATOR, false);
+		bundle.putBoolean(AMapUtil.ISEMULATOR, isSimulate);
 		intent.putExtras(bundle);
 		startActivity(intent);
 		finish();

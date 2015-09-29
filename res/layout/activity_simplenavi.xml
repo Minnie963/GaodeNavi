@@ -4,10 +4,10 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical" >
-   <com.amap.api.navi.AMapNaviView
+
+    <com.amap.api.navi.AMapNaviView
         android:id="@+id/simplenavimap"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-       />
+        android:layout_height="match_parent" />
 
 </LinearLayout>
