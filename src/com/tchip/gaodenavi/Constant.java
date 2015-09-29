@@ -65,6 +65,6 @@ public interface Constant {
 	/**
 	 * SharedPreferences名称
 	 */
-	public static final String SHARED_PREFERENCES_NAME = "CarLauncher";
+	public static final String SHARED_PREFERENCES_NAME = "ZMS_GaodeNavi";
 
 }

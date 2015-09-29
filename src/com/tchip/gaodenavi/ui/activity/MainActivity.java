@@ -5,10 +5,12 @@ import java.util.List;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
 import android.text.Editable;
@@ -22,7 +24,9 @@ import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ListView;
 import android.widget.RadioGroup;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.RadioGroup.OnCheckedChangeListener;
 import android.widget.Toast;
@@ -34,15 +38,13 @@ import com.amap.api.location.LocationProviderProxy;
 import com.amap.api.maps.AMap;
 import com.amap.api.maps.AMap.InfoWindowAdapter;
 import com.amap.api.maps.AMap.OnMarkerClickListener;
+import com.amap.api.maps.AMapOptions;
 import com.amap.api.maps.AMapUtils;
 import com.amap.api.maps.LocationSource;
 import com.amap.api.maps.MapView;
-import com.amap.api.maps.model.BitmapDescriptor;
-import com.amap.api.maps.model.BitmapDescriptorFactory;
+import com.amap.api.maps.UiSettings;
 import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.Marker;
-import com.amap.api.maps.model.MarkerOptions;
-import com.amap.api.maps.model.MyLocationStyle;
 import com.amap.api.maps.model.NaviPara;
 import com.amap.api.maps.overlay.PoiOverlay;
 import com.amap.api.navi.AMapNavi;
@@ -61,10 +63,11 @@ import com.amap.api.services.poisearch.PoiItemDetail;
 import com.amap.api.services.poisearch.PoiResult;
 import com.amap.api.services.poisearch.PoiSearch;
 import com.amap.api.services.poisearch.PoiSearch.OnPoiSearchListener;
+import com.tchip.gaodenavi.Constant;
 import com.tchip.gaodenavi.R;
 import com.tchip.gaodenavi.TTSController;
-import com.tchip.gaodenavi.R.id;
-import com.tchip.gaodenavi.R.layout;
+import com.tchip.gaodenavi.adapter.NaviResultAdapter;
+import com.tchip.gaodenavi.model.NaviResultInfo;
 import com.tchip.gaodenavi.util.AMapUtil;
 import com.tchip.gaodenavi.util.MyLog;
 
@@ -101,6 +104,19 @@ public class MainActivity extends Activity implements LocationSource,
 
 	private boolean isSimulate = false;
 
+	private ListView listResult;
+	private ArrayList<NaviResultInfo> naviArray;
+	private NaviResultAdapter naviResultAdapter;
+
+	// 设置地图UI组件
+	private UiSettings uiSettings;
+
+	// 导航界面
+	private RelativeLayout layoutNavi;
+
+	private SharedPreferences preference;
+	private Editor editor;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -108,6 +124,11 @@ public class MainActivity extends Activity implements LocationSource,
 		getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
 				WindowManager.LayoutParams.FLAG_FULLSCREEN);
 		setContentView(R.layout.activity_main);
+
+		preference = getSharedPreferences(Constant.SHARED_PREFERENCES_NAME,
+				Context.MODE_PRIVATE);
+		editor = preference.edit();
+
 		/*
 		 * 设置离线地图存储目录，在下载离线地图或初始化地图设置; 使用过程中可自行设置, 若自行设置了离线地图存储的路径，
 		 * 则需要在离线地图下载和使用地图页面都进行路径设置
@@ -116,7 +137,7 @@ public class MainActivity extends Activity implements LocationSource,
 		// MapsInitializer.sdcardDir =OffLineMapUtils.getSdCacheDir(this);
 		mapView = (MapView) findViewById(R.id.mapView);
 		mapView.onCreate(savedInstanceState);// 此方法必须重写
-		init();
+		initMap();
 
 		// 语音播报开始
 		TTSController.getInstance(this).startSpeaking();
@@ -124,12 +145,35 @@ public class MainActivity extends Activity implements LocationSource,
 	}
 
 	/**
-	 * 初始化
+	 * 初始化地图
 	 */
-	private void init() {
+	private void initMap() {
 		if (aMap == null) {
 			aMap = mapView.getMap();
-			setUpMap();
+
+			aMap.setLocationSource(this);// 设置定位监听
+			aMap.getUiSettings().setMyLocationButtonEnabled(true);// 设置默认定位按钮是否显示
+			aMap.setMyLocationEnabled(true);// 设置为true表示显示定位层并可触发定位，false表示隐藏定位层并不可触发定位，默认是false
+			// 设置定位的类型为定位模式 ，可以由定位、跟随或地图根据面向方向旋转几种
+			aMap.setMyLocationType(AMap.LOCATION_TYPE_LOCATE);
+
+			/**
+			 * 设置页面监听
+			 */
+			ImageButton btnSearch = (ImageButton) findViewById(R.id.btnSearch);
+			btnSearch.setOnClickListener(new MyOnClickListener());
+			Button nextButton = (Button) findViewById(R.id.nextButton);
+			nextButton.setOnClickListener(new MyOnClickListener());
+			searchText = (AutoCompleteTextView) findViewById(R.id.keyWord);
+			searchText.addTextChangedListener(this); // 添加文本输入框监听事件
+			editCity = (EditText) findViewById(R.id.city);
+			aMap.setOnMarkerClickListener(this); // 添加点击marker监听事件
+			aMap.setInfoWindowAdapter(this); // 添加显示infowindow监听事件
+
+			uiSettings = aMap.getUiSettings();
+			uiSettings.setZoomPosition(AMapOptions.ZOOM_POSITION_RIGHT_BUTTOM); // 缩放放到右下位置
+			uiSettings.setScaleControlsEnabled(true); // 显示比例尺
+			uiSettings.setLogoPosition(AMapOptions.LOGO_POSITION_BOTTOM_LEFT); // Logo和比例尺放到左下位置
 		}
 		mGPSModeGroup = (RadioGroup) findViewById(R.id.gps_radio_group);
 		mGPSModeGroup.setOnCheckedChangeListener(this);
@@ -141,30 +185,21 @@ public class MainActivity extends Activity implements LocationSource,
 		mRouteCalculatorProgressDialog.setCancelable(true);
 
 		AMapNavi.getInstance(this).setAMapNaviListener(this);
-	}
 
-	/**
-	 * 设置一些amap的属性
-	 */
-	private void setUpMap() {
-		aMap.setLocationSource(this);// 设置定位监听
-		aMap.getUiSettings().setMyLocationButtonEnabled(true);// 设置默认定位按钮是否显示
-		aMap.setMyLocationEnabled(true);// 设置为true表示显示定位层并可触发定位，false表示隐藏定位层并不可触发定位，默认是false
-		// 设置定位的类型为定位模式 ，可以由定位、跟随或地图根据面向方向旋转几种
-		aMap.setMyLocationType(AMap.LOCATION_TYPE_LOCATE);
+		// 搜索结果列表
+		listResult = (ListView) findViewById(R.id.listResult);
 
-		/**
-		 * 设置页面监听
-		 */
-		ImageButton btnSearch = (ImageButton) findViewById(R.id.btnSearch);
-		btnSearch.setOnClickListener(new MyOnClickListener());
-		Button nextButton = (Button) findViewById(R.id.nextButton);
-		nextButton.setOnClickListener(new MyOnClickListener());
-		searchText = (AutoCompleteTextView) findViewById(R.id.keyWord);
-		searchText.addTextChangedListener(this);// 添加文本输入框监听事件
-		editCity = (EditText) findViewById(R.id.city);
-		aMap.setOnMarkerClickListener(this);// 添加点击marker监听事件
-		aMap.setInfoWindowAdapter(this);// 添加显示infowindow监听事件
+		RelativeLayout layoutNaviTitle = (RelativeLayout) findViewById(R.id.layoutNaviTitle);
+		layoutNaviTitle.setOnClickListener(new MyOnClickListener());
+
+		layoutNavi = (RelativeLayout) findViewById(R.id.layoutNavi);
+		setTabNaviShow(false);
+
+		RelativeLayout layoutBackNavi = (RelativeLayout) findViewById(R.id.layoutBackNavi);
+		layoutBackNavi.setOnClickListener(new MyOnClickListener());
+
+		Button btnBackNavi = (Button) findViewById(R.id.btnBackNavi);
+		btnBackNavi.setOnClickListener(new MyOnClickListener());
 	}
 
 	@Override
@@ -258,10 +293,34 @@ public class MainActivity extends Activity implements LocationSource,
 			if (0.0 == locateLat || 0.0 == locateLng) {
 				MyLog.e("[Location]Error Location, not update map");
 			} else {
-				isLocated = true;
-				nowLatLng = new LatLng(locateLat, locateLng);
-				mListener.onLocationChanged(location); // 显示系统小蓝点
+				float accuracy = location.getAccuracy(); // 精确度：
+				if (accuracy > 0.0f && accuracy < 50.0f) {
+
+					isLocated = true;
+					nowLatLng = new LatLng(locateLat, locateLng);
+					mListener.onLocationChanged(location); // 显示系统小蓝点
+
+					// 获取地址
+					String address = location.getAddress();
+					String city = location.getCity();
+					String poiName = location.getPoiName();
+					String province = location.getProvince();
+					float speed = location.getSpeed();
+					long time = location.getTime();
+
+					editor.putString("locLat", "" + locateLat);
+					editor.putString("locLng", "" + locateLng);
+					editor.putString("locCity", city);
+					editor.commit();
+
+					MyLog.v("[GaodeNavi]onLocationChanged:Address" + address
+							+ ",City:" + city + ",PoiName:" + poiName
+							+ ",Province:" + province + ",Speed:" + speed
+							+ ",Time:" + time);
+
+				}
 			}
+
 			MyLog.v("[Location]Lat:" + locateLat + ",Lng:" + locateLng);
 		}
 	}
@@ -510,6 +569,34 @@ public class MainActivity extends Activity implements LocationSource,
 						poiOverlay.removeFromMap();
 						poiOverlay.addToMap();
 						poiOverlay.zoomToSpan();
+
+						// 显示到列表
+						naviArray = new ArrayList<NaviResultInfo>();
+						for (int i = 1; i < poiItems.size(); i++) {
+
+							PoiItem poiItem = poiItems.get(i);
+							String title = poiItem.getTitle();
+							String address = poiItem.getSnippet();
+							double latitude = poiItem.getLatLonPoint()
+									.getLatitude();
+							double longitude = poiItem.getLatLonPoint()
+									.getLongitude();
+
+							double distance = AMapUtil.Distance(longitude,
+									latitude, nowLatLng.longitude,
+									nowLatLng.latitude);
+
+							NaviResultInfo naviResultInfo = new NaviResultInfo(
+									i, title, address, longitude, latitude,
+									distance);
+							naviArray.add(naviResultInfo);
+						}
+
+						naviResultAdapter = new NaviResultAdapter(
+								getApplicationContext(), naviArray);
+
+						listResult.setAdapter(naviResultAdapter);
+
 					} else if (suggestionCities != null
 							&& suggestionCities.size() > 0) {
 						showSuggestCity(suggestionCities);
@@ -536,8 +623,10 @@ public class MainActivity extends Activity implements LocationSource,
 	protected void doSearchQuery() {
 		showProgressDialog(); // 显示进度框
 		currentPage = 0; // 重置页码
-		query = new PoiSearch.Query(keyWord, "", editCity.getText().toString());// 第一个参数表示搜索字符串，第二个参数表示poi搜索类型，第三个参数表示poi搜索区域（空字符串代表全国）
-		query.setPageSize(10); // 设置每页最多返回多少条poiitem
+
+		// 第一个参数表示搜索字符串，第二个参数表示poi搜索类型，第三个参数表示poi搜索区域（空字符串代表全国）
+		query = new PoiSearch.Query(keyWord, "", editCity.getText().toString());
+		query.setPageSize(20); // 设置每页最多返回多少条poiitem
 		query.setPageNum(currentPage);// 设置查第一页
 
 		poiSearch = new PoiSearch(this, query);
@@ -596,11 +685,50 @@ public class MainActivity extends Activity implements LocationSource,
 				}
 				break;
 
+			case R.id.layoutNaviTitle:
+				setTabNaviShow(true);
+				break;
+
+			case R.id.btnBackNavi:
+			case R.id.layoutBackNavi:
+				setTabNaviShow(false);
+				break;
+
 			default:
 				break;
 			}
 		}
+	}
 
+	private boolean isTabNaviShow = false;
+
+	/**
+	 * 显示或隐藏导航面板
+	 */
+	private void setTabNaviShow(boolean show) {
+		if (show) {
+			isTabNaviShow = true;
+			layoutNavi.setVisibility(View.VISIBLE);
+		} else {
+			isTabNaviShow = false;
+			layoutNavi.setVisibility(View.GONE);
+		}
+	}
+
+	@Override
+	public boolean onKeyDown(int keyCode, KeyEvent event) {
+
+		if (keyCode == KeyEvent.KEYCODE_BACK) {
+
+			if (isTabNaviShow) {
+				setTabNaviShow(false);
+			} else {
+				finish();
+			}
+			return true;
+		} else {
+			return super.onKeyDown(keyCode, event);
+		}
 	}
 
 	@Override
@@ -710,22 +838,6 @@ public class MainActivity extends Activity implements LocationSource,
 	@Override
 	public void onTrafficStatusUpdate() {
 		// TODO Auto-generated method stub
-
-	}
-
-	// 返回键处理事件
-	@Override
-	public boolean onKeyDown(int keyCode, KeyEvent event) {
-
-		// if (keyCode == KeyEvent.KEYCODE_BACK) {
-		// Intent intent = new Intent(MainActivity.this,
-		// MainStartActivity.class);
-		// intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-		// startActivity(intent);
-		//
-		// finish();
-		// }
-		return super.onKeyDown(keyCode, event);
 
 	}
 
