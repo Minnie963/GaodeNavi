@@ -43,9 +43,12 @@ import com.amap.api.maps.AMap.InfoWindowAdapter;
 import com.amap.api.maps.AMap.OnMarkerClickListener;
 import com.amap.api.maps.AMapOptions;
 import com.amap.api.maps.AMapUtils;
+import com.amap.api.maps.CameraUpdate;
+import com.amap.api.maps.CameraUpdateFactory;
 import com.amap.api.maps.LocationSource;
 import com.amap.api.maps.MapView;
 import com.amap.api.maps.UiSettings;
+import com.amap.api.maps.model.CameraPosition;
 import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.NaviPara;
@@ -66,10 +69,12 @@ import com.amap.api.services.poisearch.PoiItemDetail;
 import com.amap.api.services.poisearch.PoiResult;
 import com.amap.api.services.poisearch.PoiSearch;
 import com.amap.api.services.poisearch.PoiSearch.OnPoiSearchListener;
+import com.iflytek.cloud.SpeechUtility;
 import com.tchip.gaodenavi.Constant;
 import com.tchip.gaodenavi.R;
 import com.tchip.gaodenavi.adapter.NaviResultAdapter;
 import com.tchip.gaodenavi.model.NaviResultInfo;
+import com.tchip.gaodenavi.service.SpeakService;
 import com.tchip.gaodenavi.util.AMapUtil;
 import com.tchip.gaodenavi.util.MyLog;
 import com.tchip.gaodenavi.util.NetworkUtil;
@@ -121,6 +126,8 @@ public class MainActivity extends Activity implements LocationSource,
 	private SharedPreferences preference;
 	private Editor editor;
 
+	private boolean hasLastLoc = false;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -129,9 +136,25 @@ public class MainActivity extends Activity implements LocationSource,
 				WindowManager.LayoutParams.FLAG_FULLSCREEN);
 		setContentView(R.layout.activity_main);
 
+		// 应用程序入口处调用,避免手机内存过小,杀死后台进程后通过历史intent进入Activity造成SpeechUtility对象为null
+		// 注意：此接口在非主进程调用会返回null对象，如需在非主进程使用语音功能，请增加参数：SpeechConstant.FORCE_LOGIN+"=true"
+		// 参数间使用“,”分隔。
+		SpeechUtility
+				.createUtility(this, "appid=" + getString(R.string.app_id));
+
 		preference = getSharedPreferences(Constant.SHARED_PREFERENCES_NAME,
 				Context.MODE_PRIVATE);
 		editor = preference.edit();
+
+		// 从SharedPreference读取上次定位数据
+		double lastLocLat = Double.parseDouble(preference.getString("locLat",
+				"0.0"));
+		double lastLocLng = Double.parseDouble(preference.getString("locLng",
+				"0.0"));
+		if (!"0.0".equals(lastLocLat) && !"".equals(lastLocLng)) {
+			hasLastLoc = true;
+		}
+		nowLatLng = new LatLng(lastLocLat, lastLocLng);
 
 		/*
 		 * 设置离线地图存储目录，在下载离线地图或初始化地图设置; 使用过程中可自行设置, 若自行设置了离线地图存储的路径，
@@ -153,6 +176,26 @@ public class MainActivity extends Activity implements LocationSource,
 	private void initMap() {
 		if (aMap == null) {
 			aMap = mapView.getMap();
+
+			if (hasLastLoc) {
+				// 更新地图中心点为上次定位
+				/**
+				 * CameraPosition((LatLng target, float zoom, float tilt, float
+				 * bearing)
+				 * 
+				 * 1:目标位置的屏幕中心点经纬度坐标。
+				 * 
+				 * 2:目标可视区域的缩放级别。
+				 * 
+				 * 3:目标可视区域的倾斜度，以角度为单位。
+				 * 
+				 * 4:可视区域指向的方向 ，以角度为单位，正北方向到地图方向逆时针旋转的角度，范围从0度到360度
+				 */
+				CameraUpdate cameraUpdate = CameraUpdateFactory
+						.newCameraPosition(new CameraPosition(nowLatLng, 17, 0,
+								0));
+				aMap.moveCamera(cameraUpdate);
+			}
 
 			aMap.setLocationSource(this);// 设置定位监听
 			aMap.getUiSettings().setMyLocationButtonEnabled(true);// 设置默认定位按钮是否显示
@@ -393,21 +436,15 @@ public class MainActivity extends Activity implements LocationSource,
 						nowLatLng.longitude);
 				startPoints.add(startNaviLatLng);
 
-				if (isLocated) {
-					// DrivingSaveMoney--省钱
-					// DrivingShortDistance--最短距离
-					// DrivingNoExpressways--不走高速
-					// DrivingFastestTime--最短时间
-					// DrivingAvoidCongestion--避免拥堵
-					isSimulate = false;
-					AMapNavi.getInstance(MainActivity.this)
-							.calculateDriveRoute(startPoints, endPoints, null,
-									AMapNavi.DrivingDefault);
-					mRouteCalculatorProgressDialog.show();
-				} else {
-					Toast.makeText(getApplicationContext(), "未定位",
-							Toast.LENGTH_SHORT).show();
-				}
+				isSimulate = false;
+				// DrivingSaveMoney--省钱
+				// DrivingShortDistance--最短距离
+				// DrivingNoExpressways--不走高速
+				// DrivingFastestTime--最短时间
+				// DrivingAvoidCongestion--避免拥堵
+				AMapNavi.getInstance(MainActivity.this).calculateDriveRoute(
+						startPoints, endPoints, null, AMapNavi.DrivingDefault);
+				mRouteCalculatorProgressDialog.show();
 			}
 		});
 
@@ -430,21 +467,15 @@ public class MainActivity extends Activity implements LocationSource,
 						nowLatLng.longitude);
 				startPoints.add(startNaviLatLng);
 
-				if (isLocated) {
-					// DrivingSaveMoney--省钱
-					// DrivingShortDistance--最短距离
-					// DrivingNoExpressways--不走高速
-					// DrivingFastestTime--最短时间
-					// DrivingAvoidCongestion--避免拥堵
-					isSimulate = true;
-					AMapNavi.getInstance(MainActivity.this)
-							.calculateDriveRoute(startPoints, endPoints, null,
-									AMapNavi.DrivingDefault);
-					mRouteCalculatorProgressDialog.show();
-				} else {
-					Toast.makeText(getApplicationContext(), "未定位",
-							Toast.LENGTH_SHORT).show();
-				}
+				isSimulate = true;
+				// DrivingSaveMoney--省钱
+				// DrivingShortDistance--最短距离
+				// DrivingNoExpressways--不走高速
+				// DrivingFastestTime--最短时间
+				// DrivingAvoidCongestion--避免拥堵
+				AMapNavi.getInstance(MainActivity.this).calculateDriveRoute(
+						startPoints, endPoints, null, AMapNavi.DrivingDefault);
+				mRouteCalculatorProgressDialog.show();
 			}
 		});
 
@@ -586,7 +617,7 @@ public class MainActivity extends Activity implements LocationSource,
 
 						// 显示到列表
 						naviArray = new ArrayList<NaviResultInfo>();
-						for (int i = 1; i < poiItems.size(); i++) {
+						for (int i = 0; i < poiItems.size(); i++) {
 
 							PoiItem poiItem = poiItems.get(i);
 							String title = poiItem.getTitle();
@@ -697,21 +728,16 @@ public class MainActivity extends Activity implements LocationSource,
 						nowLatLng.latitude, nowLatLng.longitude);
 				startPointsSim.add(startNaviLatLngSim);
 
-				if (isLocated) {
-					// DrivingSaveMoney--省钱
-					// DrivingShortDistance--最短距离
-					// DrivingNoExpressways--不走高速
-					// DrivingFastestTime--最短时间
-					// DrivingAvoidCongestion--避免拥堵
-					isSimulate = true;
-					AMapNavi.getInstance(MainActivity.this)
-							.calculateDriveRoute(startPointsSim, endPointsSim,
-									null, AMapNavi.DrivingDefault);
-					mRouteCalculatorProgressDialog.show();
-				} else {
-					Toast.makeText(getApplicationContext(), "未定位",
-							Toast.LENGTH_SHORT).show();
-				}
+				// DrivingSaveMoney--省钱
+				// DrivingShortDistance--最短距离
+				// DrivingNoExpressways--不走高速
+				// DrivingFastestTime--最短时间
+				// DrivingAvoidCongestion--避免拥堵
+				isSimulate = true;
+				AMapNavi.getInstance(MainActivity.this).calculateDriveRoute(
+						startPointsSim, endPointsSim, null,
+						AMapNavi.DrivingDefault);
+				mRouteCalculatorProgressDialog.show();
 
 				break;
 
@@ -732,21 +758,15 @@ public class MainActivity extends Activity implements LocationSource,
 						nowLatLng.longitude);
 				startPoints.add(startNaviLatLng);
 
-				if (isLocated) {
-					// DrivingSaveMoney--省钱
-					// DrivingShortDistance--最短距离
-					// DrivingNoExpressways--不走高速
-					// DrivingFastestTime--最短时间
-					// DrivingAvoidCongestion--避免拥堵
-					isSimulate = false;
-					AMapNavi.getInstance(MainActivity.this)
-							.calculateDriveRoute(startPoints, endPoints, null,
-									AMapNavi.DrivingDefault);
-					mRouteCalculatorProgressDialog.show();
-				} else {
-					Toast.makeText(getApplicationContext(), "未定位",
-							Toast.LENGTH_SHORT).show();
-				}
+				// DrivingSaveMoney--省钱
+				// DrivingShortDistance--最短距离
+				// DrivingNoExpressways--不走高速
+				// DrivingFastestTime--最短时间
+				// DrivingAvoidCongestion--避免拥堵
+				isSimulate = false;
+				AMapNavi.getInstance(MainActivity.this).calculateDriveRoute(
+						startPoints, endPoints, null, AMapNavi.DrivingDefault);
+				mRouteCalculatorProgressDialog.show();
 
 				break;
 
@@ -893,24 +913,37 @@ public class MainActivity extends Activity implements LocationSource,
 		return false;
 	}
 
+	/**
+	 * 到达目的地后回调函数
+	 */
 	@Override
 	public void onArriveDestination() {
+		startSpeak("到达目的地");
+	}
+
+	/**
+	 * 驾车路径导航到达某个途经点的回调函数。
+	 * 
+	 * wayID - 到达途径点的编号，标号从1开始，依次累加。
+	 */
+	@Override
+	public void onArrivedWayPoint(int wayId) {
 		// TODO Auto-generated method stub
 
 	}
 
+	/**
+	 * 步行或者驾车路径规划失败后的回调函数
+	 */
 	@Override
-	public void onArrivedWayPoint(int arg0) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void onCalculateRouteFailure(int arg0) {
+	public void onCalculateRouteFailure(int errCode) {
 		mRouteCalculatorProgressDialog.dismiss();
 
 	}
 
+	/**
+	 * 步行或者驾车路径规划成功后的回调函数。
+	 */
 	@Override
 	public void onCalculateRouteSuccess() {
 		mRouteCalculatorProgressDialog.dismiss();
@@ -924,45 +957,126 @@ public class MainActivity extends Activity implements LocationSource,
 		finish();
 	}
 
+	/**
+	 * 模拟导航停止后回调函数
+	 */
 	@Override
 	public void onEndEmulatorNavi() {
 		// TODO Auto-generated method stub
-
+		startSpeak("模拟导航结束");
 	}
 
+	/**
+	 * 导航播报信息回调函数
+	 */
 	@Override
-	public void onGetNavigationText(int arg0, String arg1) {
+	public void onGetNavigationText(int type, String text) {
+		// TODO Auto-generated method stub
+		startSpeak(text);
+	}
+
+	/**
+	 * 用户手机GPS设置是否开启的回调函数
+	 */
+	@Override
+	public void onGpsOpenStatus(boolean enabled) {
 		// TODO Auto-generated method stub
 
 	}
 
-	@Override
-	public void onGpsOpenStatus(boolean arg0) {
-		// TODO Auto-generated method stub
-
-	}
-
+	/**
+	 * 导航创建失败时的回调函数
+	 */
 	@Override
 	public void onInitNaviFailure() {
 		// TODO Auto-generated method stub
 
 	}
 
+	/**
+	 * 导航创建成功时的回调函数。
+	 */
 	@Override
 	public void onInitNaviSuccess() {
 		// TODO Auto-generated method stub
 
 	}
 
+	/**
+	 * 当GPS位置有更新时的回调函数。
+	 */
 	@Override
-	public void onLocationChange(AMapNaviLocation arg0) {
+	public void onLocationChange(AMapNaviLocation location) {
 		// TODO Auto-generated method stub
 
 	}
 
+	/**
+	 * 导航引导信息回调 naviinfo 是导航信息类
+	 * 
+	 * 
+	 */
 	@Override
-	public void onNaviInfoUpdate(NaviInfo arg0) {
+	public void onNaviInfoUpdate(NaviInfo naviInfo) {
 		// TODO Auto-generated method stub
+		MyLog.v("[onNaviInfoUpdate]");
+
+		// 获取电子眼距离。
+		int cameraDistance = naviInfo.getCameraDistance();
+
+		// 获取电子眼类型。
+		naviInfo.getCameraType();
+
+		// 获取摄像头经纬度。
+		naviInfo.getCameraCoord();
+
+		// 获取自车经纬度。
+		naviInfo.getCoord();
+
+		// 获取自车所在小路段。
+		naviInfo.getCurLink();
+
+		// 获取当前位置前一个形状点索引。
+		naviInfo.getCurPoint();
+
+		// 获取当前路线名称。
+		naviInfo.getCurrentRoadName();
+
+		// 获取当前大路段索引。
+		naviInfo.getCurStep();
+
+		// 获取当前路段剩余距离。
+		naviInfo.getCurStepRetainDistance();
+
+		// 获取当前路段剩余时间。
+		naviInfo.getCurStepRetainTime();
+
+		// 自车方向（单位度）。
+		naviInfo.getDirection();
+
+		// 获取导航转向图标。
+		naviInfo.getIconType();
+
+		// 获取电子眼限速。
+		naviInfo.getLimitSpeed();
+
+		// 导航类型:1 GPS导航更新,2 模拟导航更新。
+		naviInfo.getNaviType();
+
+		// 获取下一条路名。
+		naviInfo.getNextRoadName();
+
+		// 获取路线剩余距离。
+		naviInfo.getPathRetainDistance();
+
+		// 获取路线剩余时间。
+		naviInfo.getPathRetainTime();
+
+		// 获取距服务站距离。
+		naviInfo.getServiceAreaDistance();
+
+		startSpeak("前方" + cameraDistance + "米有测速摄像头");
+		// AMapNavi.getInstance(this).readNaviInfo();
 
 	}
 
@@ -973,28 +1087,49 @@ public class MainActivity extends Activity implements LocationSource,
 
 	}
 
+	/**
+	 * 驾车导航时，如果前方遇到拥堵时需要重新计算路径的回调。
+	 */
 	@Override
 	public void onReCalculateRouteForTrafficJam() {
 		// TODO Auto-generated method stub
 
 	}
 
+	/**
+	 * 步行或驾车导航时,出现偏航后需要重新计算路径的回调函数。
+	 */
 	@Override
 	public void onReCalculateRouteForYaw() {
 		// TODO Auto-generated method stub
 
 	}
 
+	/**
+	 * 启动导航后回调函数。
+	 * 
+	 * naviType - 导航类型，1 ： 实时导航，2 ：模拟导航。
+	 */
 	@Override
-	public void onStartNavi(int arg0) {
+	public void onStartNavi(int naviType) {
 		// TODO Auto-generated method stub
+		startSpeak("开始导航");
 
 	}
 
+	/**
+	 * 当前方路况光柱信息有更新时回调函数。
+	 */
 	@Override
 	public void onTrafficStatusUpdate() {
 		// TODO Auto-generated method stub
 
+	}
+
+	private void startSpeak(String content) {
+		Intent intent = new Intent(getApplicationContext(), SpeakService.class);
+		intent.putExtra("content", content);
+		startService(intent);
 	}
 
 }

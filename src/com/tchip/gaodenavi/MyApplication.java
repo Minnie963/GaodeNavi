@@ -2,6 +2,8 @@ package com.tchip.gaodenavi;
 
 import java.util.ArrayList;
 
+import com.iflytek.cloud.SpeechUtility;
+
 import android.app.Activity;
 import android.app.Application;
 
