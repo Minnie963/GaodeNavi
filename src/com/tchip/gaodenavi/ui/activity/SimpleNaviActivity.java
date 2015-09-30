@@ -9,7 +9,6 @@ import com.amap.api.navi.AMapNavi;
 import com.amap.api.navi.AMapNaviView;
 import com.amap.api.navi.AMapNaviViewListener;
 import com.tchip.gaodenavi.R;
-import com.tchip.gaodenavi.TTSController;
 import com.tchip.gaodenavi.util.AMapUtil;
 
 /**
@@ -49,7 +48,6 @@ public class SimpleNaviActivity extends Activity implements
 		mAmapAMapNaviView = (AMapNaviView) findViewById(R.id.simplenavimap);
 		mAmapAMapNaviView.onCreate(savedInstanceState);
 		mAmapAMapNaviView.setAMapNaviViewListener(this);
-		TTSController.getInstance(this).startSpeaking();
 		if (mIsEmulatorNavi) {
 			// 设置模拟速度
 			AMapNavi.getInstance(this).setEmulatorNaviSpeed(100);
@@ -161,8 +159,6 @@ public class SimpleNaviActivity extends Activity implements
 	public void onDestroy() {
 		super.onDestroy();
 		mAmapAMapNaviView.onDestroy();
-
-		TTSController.getInstance(this).stopSpeaking();
 
 	}
 

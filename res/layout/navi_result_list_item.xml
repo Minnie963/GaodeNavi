@@ -10,7 +10,7 @@
         android:layout_height="91dp" >
 
 
-        <ImageButton
+        <ImageView
             android:id="@+id/btnNavi"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

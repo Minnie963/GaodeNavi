@@ -60,8 +60,6 @@ public class NaviResultAdapter extends BaseAdapter {
 		TextView textName;
 		TextView textDetail;
 		TextView textDistance;
-		ImageButton btnSimulate;
-		ImageButton btnNavi;
 	}
 
 	@Override
@@ -79,10 +77,6 @@ public class NaviResultAdapter extends BaseAdapter {
 					.findViewById(R.id.textDetail);
 			viewHolder.textDistance = (TextView) convertView
 					.findViewById(R.id.textDistance);
-			viewHolder.btnSimulate = (ImageButton) convertView
-					.findViewById(R.id.btnSimulate);
-			viewHolder.btnNavi = (ImageButton) convertView
-					.findViewById(R.id.btnNavi);
 
 			convertView.setTag(viewHolder);
 		} else {

@@ -6,8 +6,10 @@ import java.util.List;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.DialogInterface.OnCancelListener;
 import android.content.SharedPreferences.Editor;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
@@ -19,6 +21,7 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
@@ -65,11 +68,12 @@ import com.amap.api.services.poisearch.PoiSearch;
 import com.amap.api.services.poisearch.PoiSearch.OnPoiSearchListener;
 import com.tchip.gaodenavi.Constant;
 import com.tchip.gaodenavi.R;
-import com.tchip.gaodenavi.TTSController;
 import com.tchip.gaodenavi.adapter.NaviResultAdapter;
 import com.tchip.gaodenavi.model.NaviResultInfo;
 import com.tchip.gaodenavi.util.AMapUtil;
 import com.tchip.gaodenavi.util.MyLog;
+import com.tchip.gaodenavi.util.NetworkUtil;
+import com.tchip.gaodenavi.view.ActionSheet;
 
 /**
  * AMapV2地图中介绍定位三种模式的使用，包括定位，追随，旋转
@@ -99,7 +103,7 @@ public class MainActivity extends Activity implements LocationSource,
 	private ProgressDialog mRouteCalculatorProgressDialog;// 路径规划过程显示状态
 
 	// 当前位置
-	private LatLng nowLatLng;
+	private LatLng nowLatLng, listChoiceLatLng;
 	private boolean isLocated = false;
 
 	private boolean isSimulate = false;
@@ -140,7 +144,6 @@ public class MainActivity extends Activity implements LocationSource,
 		initMap();
 
 		// 语音播报开始
-		TTSController.getInstance(this).startSpeaking();
 		initView();
 	}
 
@@ -496,6 +499,7 @@ public class MainActivity extends Activity implements LocationSource,
 					+ cities.get(i).getAdCode() + "\n";
 		}
 		// ToastUtil.show(PoiKeywordSearchActivity.this, infomation);
+		MyLog.v("[showSuggestCity]infomation:" + infomation);
 
 	}
 
@@ -553,17 +557,27 @@ public class MainActivity extends Activity implements LocationSource,
 	 */
 	@Override
 	public void onPoiSearched(PoiResult result, int rCode) {
+		MyLog.i("[onPoiSearched]Start,rCode=" + rCode);
 		dissmissProgressDialog();// 隐藏对话框
 		if (rCode == 0) {
+			MyLog.i("AAAAAAAAAAA");
 			if (result != null && result.getQuery() != null) {// 搜索poi的结果
+				MyLog.i("BBBBBBBBBBBBB");
 				if (result.getQuery().equals(query)) {// 是否是同一条
+					MyLog.i("CCCCCCCCCCCCCCC");
 					poiResult = result;
 					// 取得搜索到的poiitems有多少页
-					List<PoiItem> poiItems = poiResult.getPois();// 取得第一页的poiitem数据，页数从数字0开始
+					MyLog.i("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+					List<PoiItem> poiItems = result.getPois();// 取得第一页的poiitem数据，页数从数字0开始
+					MyLog.i("YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY");
 					List<SuggestionCity> suggestionCities = poiResult
 							.getSearchSuggestionCitys();// 当搜索不到poiitem数据时，会返回含有搜索关键字的城市信息
+					MyLog.i("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ");
+					MyLog.i("[MainActivity]onPoiSearched,result.getPois().size():"
+							+ poiItems.size());
 
 					if (poiItems != null && poiItems.size() > 0) {
+						MyLog.v("DDDDDDDDDDDDDDDDDD");
 						aMap.clear();// 清理之前的图标
 						PoiOverlay poiOverlay = new PoiOverlay(aMap, poiItems);
 						poiOverlay.removeFromMap();
@@ -597,22 +611,161 @@ public class MainActivity extends Activity implements LocationSource,
 
 						listResult.setAdapter(naviResultAdapter);
 
+						listResult
+								.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+
+									public void onItemClick(
+											android.widget.AdapterView<?> parent,
+											android.view.View view,
+											int position, long id) {
+										// 弹出导航方式选择对话框
+										NaviResultInfo naviResultInfo = naviArray
+												.get(position);
+										// 暂存选中位置经纬度，供ActionSheet使用
+										listChoiceLatLng = new LatLng(
+												naviResultInfo.getLatitude(),
+												naviResultInfo.getLongitude());
+
+										ActionSheet.showSheet(
+												MainActivity.this,
+												new MyOnActionSheetSelected(),
+												new MyOnCancelListener(),
+												"导航到："
+														+ naviArray.get(
+																position)
+																.getName()
+														+ "？");
+
+									}
+								});
+
 					} else if (suggestionCities != null
 							&& suggestionCities.size() > 0) {
 						showSuggestCity(suggestionCities);
+						MyLog.v("EEEEEEEEEEEEEEEEEEEEEEEEEEE");
 					} else {
 						// 没有结果
+						Toast.makeText(getApplicationContext(), "没有结果",
+								Toast.LENGTH_SHORT).show();
+						MyLog.v("FFFFFFFFFFFFFFFFFFFFFFFF");
 					}
+				} else {
+					MyLog.v("GGGGGGGGGGGGGGGGGGGGGGGGGGGG");
+					Toast.makeText(getApplicationContext(), "什么鬼?!",
+							Toast.LENGTH_SHORT).show();
 				}
 			} else {
 				// 没有结果
+				Toast.makeText(getApplicationContext(), "没有结果",
+						Toast.LENGTH_SHORT).show();
 			}
 		} else if (rCode == 27) {
 			// 网络错误
+			Toast.makeText(getApplicationContext(), "网络错误", Toast.LENGTH_SHORT)
+					.show();
+			MyLog.e("[onPoiSearched]网络错误");
 		} else if (rCode == 32) {
 			// Key错误
+			MyLog.e("[onPoiSearched]Key错误");
 		} else {
 			// 其它错误：rCode
+			MyLog.e("[onPoiSearched]错误:" + rCode);
+		}
+
+	}
+
+	class MyOnActionSheetSelected implements ActionSheet.OnActionSheetSelected {
+
+		@Override
+		public void onClick(int whichButton) {
+
+			switch (whichButton) {
+			case 0:
+				// 模拟导航
+				Toast.makeText(getApplicationContext(), "模拟导航",
+						Toast.LENGTH_SHORT).show();
+
+				// 起点终点列表
+				ArrayList<NaviLatLng> startPointsSim = new ArrayList<NaviLatLng>();
+				ArrayList<NaviLatLng> endPointsSim = new ArrayList<NaviLatLng>();
+
+				NaviLatLng endNaviLatLngSim = new NaviLatLng(
+						listChoiceLatLng.latitude, listChoiceLatLng.longitude);
+				endPointsSim.add(endNaviLatLngSim);
+
+				NaviLatLng startNaviLatLngSim = new NaviLatLng(
+						nowLatLng.latitude, nowLatLng.longitude);
+				startPointsSim.add(startNaviLatLngSim);
+
+				if (isLocated) {
+					// DrivingSaveMoney--省钱
+					// DrivingShortDistance--最短距离
+					// DrivingNoExpressways--不走高速
+					// DrivingFastestTime--最短时间
+					// DrivingAvoidCongestion--避免拥堵
+					isSimulate = true;
+					AMapNavi.getInstance(MainActivity.this)
+							.calculateDriveRoute(startPointsSim, endPointsSim,
+									null, AMapNavi.DrivingDefault);
+					mRouteCalculatorProgressDialog.show();
+				} else {
+					Toast.makeText(getApplicationContext(), "未定位",
+							Toast.LENGTH_SHORT).show();
+				}
+
+				break;
+
+			case 1:
+				// 实况导航
+				Toast.makeText(getApplicationContext(), "实况导航",
+						Toast.LENGTH_SHORT).show();
+
+				// 起点终点列表
+				ArrayList<NaviLatLng> startPoints = new ArrayList<NaviLatLng>();
+				ArrayList<NaviLatLng> endPoints = new ArrayList<NaviLatLng>();
+
+				NaviLatLng endNaviLatLng = new NaviLatLng(
+						listChoiceLatLng.latitude, listChoiceLatLng.longitude);
+				endPoints.add(endNaviLatLng);
+
+				NaviLatLng startNaviLatLng = new NaviLatLng(nowLatLng.latitude,
+						nowLatLng.longitude);
+				startPoints.add(startNaviLatLng);
+
+				if (isLocated) {
+					// DrivingSaveMoney--省钱
+					// DrivingShortDistance--最短距离
+					// DrivingNoExpressways--不走高速
+					// DrivingFastestTime--最短时间
+					// DrivingAvoidCongestion--避免拥堵
+					isSimulate = false;
+					AMapNavi.getInstance(MainActivity.this)
+							.calculateDriveRoute(startPoints, endPoints, null,
+									AMapNavi.DrivingDefault);
+					mRouteCalculatorProgressDialog.show();
+				} else {
+					Toast.makeText(getApplicationContext(), "未定位",
+							Toast.LENGTH_SHORT).show();
+				}
+
+				break;
+
+			case 2:
+				// 取消
+
+				break;
+
+			default:
+				break;
+			}
+		}
+
+	}
+
+	class MyOnCancelListener implements OnCancelListener {
+
+		@Override
+		public void onCancel(DialogInterface dialog) {
 		}
 
 	}
@@ -626,7 +779,7 @@ public class MainActivity extends Activity implements LocationSource,
 
 		// 第一个参数表示搜索字符串，第二个参数表示poi搜索类型，第三个参数表示poi搜索区域（空字符串代表全国）
 		query = new PoiSearch.Query(keyWord, "", editCity.getText().toString());
-		query.setPageSize(20); // 设置每页最多返回多少条poiitem
+		query.setPageSize(11); // 设置每页最多返回多少条poiitem
 		query.setPageNum(currentPage);// 设置查第一页
 
 		poiSearch = new PoiSearch(this, query);
@@ -667,6 +820,9 @@ public class MainActivity extends Activity implements LocationSource,
 				if ("".equals(keyWord)) {
 					// 请输入搜索关键字
 					return;
+				} else if (!NetworkUtil
+						.isNetworkConnected(getApplicationContext())) {
+					NetworkUtil.noNetworkHint(getApplicationContext());
 				} else {
 					doSearchQuery();
 				}
