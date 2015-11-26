@@ -10,6 +10,7 @@ import com.amap.api.navi.AMapNaviView;
 import com.amap.api.navi.AMapNaviViewListener;
 import com.tchip.gaodenavi.R;
 import com.tchip.gaodenavi.util.AMapUtil;
+import com.tchip.gaodenavi.util.MyLog;
 
 /**
  * 导航界面
@@ -74,31 +75,33 @@ public class SimpleNaviActivity extends Activity implements
 
 	@Override
 	public void onNaviSetting() {
-
+		MyLog.v("onNaviSetting");
 	}
 
 	@Override
 	public void onNaviMapMode(int arg0) {
 		// TODO Auto-generated method stub
+		MyLog.v("onNaviMapMode:"+arg0);
 
 	}
 
 	@Override
 	public void onNaviTurnClick() {
 		// TODO Auto-generated method stub
+		MyLog.v("onNaviTurnClick");
 
 	}
 
 	@Override
 	public void onNextRoadClick() {
 		// TODO Auto-generated method stub
-
+		MyLog.v("onNextRoadClick");
 	}
 
 	@Override
 	public void onScanViewButtonClick() {
 		// TODO Auto-generated method stub
-
+		MyLog.v("onScanViewButtonClick");
 	}
 
 	/**

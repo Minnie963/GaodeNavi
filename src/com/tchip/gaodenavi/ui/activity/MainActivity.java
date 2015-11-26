@@ -591,24 +591,17 @@ public class MainActivity extends Activity implements LocationSource,
 		MyLog.i("[onPoiSearched]Start,rCode=" + rCode);
 		dissmissProgressDialog();// 隐藏对话框
 		if (rCode == 0) {
-			MyLog.i("AAAAAAAAAAA");
 			if (result != null && result.getQuery() != null) {// 搜索poi的结果
-				MyLog.i("BBBBBBBBBBBBB");
 				if (result.getQuery().equals(query)) {// 是否是同一条
-					MyLog.i("CCCCCCCCCCCCCCC");
 					poiResult = result;
 					// 取得搜索到的poiitems有多少页
-					MyLog.i("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
 					List<PoiItem> poiItems = result.getPois();// 取得第一页的poiitem数据，页数从数字0开始
-					MyLog.i("YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY");
 					List<SuggestionCity> suggestionCities = poiResult
 							.getSearchSuggestionCitys();// 当搜索不到poiitem数据时，会返回含有搜索关键字的城市信息
-					MyLog.i("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ");
 					MyLog.i("[MainActivity]onPoiSearched,result.getPois().size():"
 							+ poiItems.size());
 
 					if (poiItems != null && poiItems.size() > 0) {
-						MyLog.v("DDDDDDDDDDDDDDDDDD");
 						aMap.clear();// 清理之前的图标
 						PoiOverlay poiOverlay = new PoiOverlay(aMap, poiItems);
 						poiOverlay.removeFromMap();
@@ -673,15 +666,12 @@ public class MainActivity extends Activity implements LocationSource,
 					} else if (suggestionCities != null
 							&& suggestionCities.size() > 0) {
 						showSuggestCity(suggestionCities);
-						MyLog.v("EEEEEEEEEEEEEEEEEEEEEEEEEEE");
 					} else {
 						// 没有结果
 						Toast.makeText(getApplicationContext(), "没有结果",
 								Toast.LENGTH_SHORT).show();
-						MyLog.v("FFFFFFFFFFFFFFFFFFFFFFFF");
 					}
 				} else {
-					MyLog.v("GGGGGGGGGGGGGGGGGGGGGGGGGGGG");
 					Toast.makeText(getApplicationContext(), "什么鬼?!",
 							Toast.LENGTH_SHORT).show();
 				}
@@ -909,6 +899,7 @@ public class MainActivity extends Activity implements LocationSource,
 
 	@Override
 	public boolean onMarkerClick(Marker marker) {
+		MyLog.v("onMarkerClick");
 		marker.showInfoWindow();
 		return false;
 	}
@@ -929,7 +920,7 @@ public class MainActivity extends Activity implements LocationSource,
 	@Override
 	public void onArrivedWayPoint(int wayId) {
 		// TODO Auto-generated method stub
-
+		MyLog.v("onArrivedWayPoint");
 	}
 
 	/**
@@ -962,7 +953,7 @@ public class MainActivity extends Activity implements LocationSource,
 	 */
 	@Override
 	public void onEndEmulatorNavi() {
-		// TODO Auto-generated method stub
+		MyLog.v("onEndEmulatorNavi");
 		startSpeak("模拟导航结束");
 	}
 
@@ -973,6 +964,7 @@ public class MainActivity extends Activity implements LocationSource,
 	public void onGetNavigationText(int type, String text) {
 		// TODO Auto-generated method stub
 		startSpeak(text);
+		MyLog.v("[onGetNavigationText]type:" + type + ",text:" + text);
 	}
 
 	/**
@@ -981,7 +973,7 @@ public class MainActivity extends Activity implements LocationSource,
 	@Override
 	public void onGpsOpenStatus(boolean enabled) {
 		// TODO Auto-generated method stub
-
+		MyLog.v("onGpsOpenStatus:" + enabled);
 	}
 
 	/**
@@ -990,7 +982,7 @@ public class MainActivity extends Activity implements LocationSource,
 	@Override
 	public void onInitNaviFailure() {
 		// TODO Auto-generated method stub
-
+		MyLog.v("onInitNaviFailure");
 	}
 
 	/**
@@ -999,6 +991,7 @@ public class MainActivity extends Activity implements LocationSource,
 	@Override
 	public void onInitNaviSuccess() {
 		// TODO Auto-generated method stub
+		MyLog.v("onInitNaviSuccess");
 
 	}
 
@@ -1008,7 +1001,7 @@ public class MainActivity extends Activity implements LocationSource,
 	@Override
 	public void onLocationChange(AMapNaviLocation location) {
 		// TODO Auto-generated method stub
-
+		MyLog.v("onLocationChange");
 	}
 
 	/**
@@ -1084,6 +1077,7 @@ public class MainActivity extends Activity implements LocationSource,
 	@Deprecated
 	public void onNaviInfoUpdated(AMapNaviInfo arg0) {
 		// TODO Auto-generated method stub
+		MyLog.v("onNaviInfoUpdated");
 
 	}
 
@@ -1093,6 +1087,7 @@ public class MainActivity extends Activity implements LocationSource,
 	@Override
 	public void onReCalculateRouteForTrafficJam() {
 		// TODO Auto-generated method stub
+		MyLog.v("onReCalculateRouteForTrafficJam");
 
 	}
 
@@ -1103,6 +1098,7 @@ public class MainActivity extends Activity implements LocationSource,
 	public void onReCalculateRouteForYaw() {
 		// TODO Auto-generated method stub
 
+		MyLog.v("onReCalculateRouteForYaw");
 	}
 
 	/**
@@ -1113,7 +1109,7 @@ public class MainActivity extends Activity implements LocationSource,
 	@Override
 	public void onStartNavi(int naviType) {
 		// TODO Auto-generated method stub
-		startSpeak("开始导航");
+		startSpeak("导航开始");
 
 	}
 
@@ -1123,6 +1119,7 @@ public class MainActivity extends Activity implements LocationSource,
 	@Override
 	public void onTrafficStatusUpdate() {
 		// TODO Auto-generated method stub
+		MyLog.v("onTrafficStatusUpdate");
 
 	}
 
